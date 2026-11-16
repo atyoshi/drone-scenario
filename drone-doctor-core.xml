@@ -1,0 +1,68 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<scenario>
+  <!--Build or load drone-doctor:lab in the CORE VM before starting this topology.-->
+  <networks>
+    <network id="7" name="mission-wlan" canvas="1" model="basic_range" type="WIRELESS_LAN">
+      <position x="270.0" y="190.0" />
+    </network>
+  </networks>
+  <devices>
+    <device id="1" name="drone-1" canvas="1" type="PC" class="docker" image="drone-doctor:lab">
+      <position x="260.0" y="130.0" />
+    </device>
+    <device id="2" name="drone-2" canvas="1" type="PC" class="docker" image="drone-doctor:lab">
+      <position x="200.0" y="200.0" />
+    </device>
+    <device id="3" name="drone-3" canvas="1" type="PC" class="docker" image="drone-doctor:lab">
+      <position x="270.0" y="240.0" />
+    </device>
+    <device id="4" name="drone-4" canvas="1" type="PC" class="docker" image="drone-doctor:lab">
+      <position x="335.0" y="195.0" />
+    </device>
+    <device id="5" name="lab-router" canvas="1" type="PC" class="docker" image="drone-doctor:lab">
+      <position x="220.0" y="60.0" />
+    </device>
+    <device id="6" name="lab-client" canvas="1" type="PC" class="docker" image="drone-doctor:lab">
+      <position x="105.0" y="60.0" />
+    </device>
+  </devices>
+  <links>
+    <link node1="1" node2="7">
+      <iface1 id="0" name="mission0" mac="02:44:44:00:01:00" ip4="10.42.0.1" ip4_mask="24" />
+    </link>
+    <link node1="2" node2="7">
+      <iface1 id="0" name="mission0" mac="02:44:44:00:02:00" ip4="10.42.0.2" ip4_mask="24" />
+    </link>
+    <link node1="3" node2="7">
+      <iface1 id="0" name="mission0" mac="02:44:44:00:03:00" ip4="10.42.0.3" ip4_mask="24" />
+    </link>
+    <link node1="4" node2="7">
+      <iface1 id="0" name="mission0" mac="02:44:44:00:04:00" ip4="10.42.0.4" ip4_mask="24" />
+    </link>
+    <link node1="6" node2="5">
+      <iface1 id="0" name="outside0" mac="02:44:44:00:06:00" ip4="198.51.100.2" ip4_mask="30" />
+      <iface2 id="0" name="outside0" mac="02:44:44:00:05:00" ip4="198.51.100.1" ip4_mask="30" />
+    </link>
+    <link node1="5" node2="1">
+      <iface1 id="1" name="inside0" mac="02:44:44:00:05:01" ip4="192.0.2.1" ip4_mask="30" />
+      <iface2 id="1" name="wan0" mac="02:44:44:00:01:01" ip4="192.0.2.2" ip4_mask="30" />
+    </link>
+  </links>
+  <mobility_configurations>
+    <mobility_configuration node="7" model="basic_range">
+      <configuration name="range" value="180" />
+      <configuration name="bandwidth" value="54000000" />
+      <configuration name="delay" value="2000" />
+      <configuration name="jitter" value="0" />
+      <configuration name="error" value="0.0" />
+      <configuration name="promiscuous" value="0" />
+    </mobility_configuration>
+  </mobility_configurations>
+  <session_origin lat="47.579166412353516" lon="-122.13232421875" alt="2.0" scale="150.0" />
+  <session_metadata>
+    <configuration name="canvas" value="{&quot;gridlines&quot;: true, &quot;canvases&quot;: [{&quot;id&quot;: 1, &quot;wallpaper&quot;: null, &quot;wallpaper_style&quot;: 1, &quot;fit_image&quot;: false, &quot;dimensions&quot;: [1000, 750]}]}" />
+  </session_metadata>
+  <default_services>
+    <node type="PC" />
+  </default_services>
+</scenario>

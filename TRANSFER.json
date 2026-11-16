@@ -1,0 +1,45 @@
+{
+  "copied_at_utc": "2026-11-13T01:51:32.833628+00:00",
+  "destination": "/home/dsch/drone_scenario",
+  "scenario_source": "/home/dsch/Documents/Codex/2026-11-11/hel/work/drone-doctor",
+  "artifacts_source": "/home/dsch/Documents/Codex/2026-11-11/hel/outputs",
+  "core_source": "/home/dsch/core",
+  "core_version": "9.2.1",
+  "core_revision": "aebe314139d182800ed0552ba30c6811e2718244",
+  "source_files_verified": [
+    ".dockerignore",
+    "observe.rules",
+    "inline.rules",
+    "common.py",
+    "scenario.py",
+    "doctor.py",
+    "services.py",
+    "policy.py",
+    "Dockerfile",
+    "suricata.yaml",
+    "guard.py",
+    "fixture.py",
+    "tests/test_lab.py"
+  ],
+  "core_files_verified": 483,
+  "local_changes": [
+    "Added workspace inventory to README.md",
+    "Added DEPENDENCIES.md, .gitignore, TRANSFER.json, and SHA256SUMS"
+  ],
+  "originals_retained": true,
+  "verification": {
+    "offline_tests_passed": 9,
+    "cli_help_passed": true,
+    "xml_devices": [
+      "drone-1",
+      "drone-2",
+      "drone-3",
+      "drone-4",
+      "lab-router",
+      "lab-client"
+    ],
+    "live_scenario_launched": false
+  },
+  "optional_model_binaries_included": false,
+  "offline_package_repository_included": false
+}

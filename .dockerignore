@@ -1,0 +1,11 @@
+*
+!common.py
+!policy.py
+!doctor.py
+!guard.py
+!services.py
+!fixture.py
+!suricata.yaml
+!observe.rules
+!inline.rules
+!Dockerfile

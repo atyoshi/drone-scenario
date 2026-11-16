@@ -1,0 +1,350 @@
+from pathlib import Path
+from unittest import mock
+
+import pytest
+import netaddr
+
+from core.config import ConfigBool, ConfigString
+from core.emulator.data import InterfaceData
+from core.emulator.session import Session
+from core.errors import CoreCommandError, CoreError
+from core.nodes.base import CoreNode
+from core.nodes.network import SwitchNode
+from core.services.base import CoreService, ServiceBootError, ServiceMode
+from core.services.defaults.utilservices.services import DefaultRouteService
+
+TEMPLATE_TEXT = "echo hello"
+
+
+class MyService(CoreService):
+    name = "MyService"
+    group = "MyGroup"
+    directories = ["/usr/local/lib"]
+    files = ["test.sh"]
+    executables = []
+    dependencies = []
+    startup = [f"sh {files[0]}"]
+    validate = [f"pidof {files[0]}"]
+    shutdown = [f"pkill {files[0]}"]
+    validation_mode = ServiceMode.BLOCKING
+    default_configs = [
+        ConfigString(id="value1", label="Text"),
+        ConfigBool(id="value2", label="Boolean"),
+        ConfigString(
+            id="value3", label="Multiple Choice", options=["value1", "value2", "value3"]
+        ),
+    ]
+    modes = {
+        "mode1": {"value1": "value1", "value2": "0", "value3": "value2"},
+        "mode2": {"value1": "value2", "value2": "1", "value3": "value3"},
+        "mode3": {"value1": "value3", "value2": "0", "value3": "value1"},
+    }
+
+    def get_text_template(self, name: str) -> str:
+        return TEMPLATE_TEXT
+
+
+class TestServices:
+    def test_set_template(self):
+        # given
+        node = mock.MagicMock()
+        text = "echo custom"
+        service = MyService(node)
+
+        # when
+        service.set_template(MyService.files[0], text)
+
+        # then
+        assert MyService.files[0] in service.custom_templates
+        assert service.custom_templates[MyService.files[0]] == text
+
+    def test_create_directories(self):
+        # given
+        node = mock.MagicMock()
+        service = MyService(node)
+
+        # when
+        service.create_dirs()
+
+        # then
+        directory = Path(MyService.directories[0])
+        node.create_dir.assert_called_with(directory)
+
+    def test_create_files_custom(self):
+        # given
+        node = mock.MagicMock()
+        service = MyService(node)
+        text = "echo custom"
+        service.set_template(MyService.files[0], text)
+
+        # when
+        service.create_files()
+
+        # then
+        file_path = Path(MyService.files[0])
+        node.create_file.assert_called_with(file_path, text)
+
+    def test_create_files_text(self):
+        # given
+        node = mock.MagicMock()
+        service = MyService(node)
+
+        # when
+        service.create_files()
+
+        # then
+        file_path = Path(MyService.files[0])
+        node.create_file.assert_called_with(file_path, TEMPLATE_TEXT)
+
+    def test_run_startup(self):
+        # given
+        node = mock.MagicMock()
+        wait = True
+        service = MyService(node)
+
+        # when
+        service.run_startup(wait=wait)
+
+        # then
+        node.cmd.assert_called_with(MyService.startup[0], wait=wait, shell=True)
+
+    def test_run_startup_exception(self):
+        # given
+        node = mock.MagicMock()
+        node.cmd.side_effect = CoreCommandError(1, "error")
+        service = MyService(node)
+
+        # when
+        with pytest.raises(ServiceBootError):
+            service.run_startup(wait=True)
+
+    def test_shutdown(self):
+        # given
+        node = mock.MagicMock()
+        service = MyService(node)
+
+        # when
+        service.stop()
+
+        # then
+        node.cmd.assert_called_with(MyService.shutdown[0], shell=True)
+
+    def test_run_validation(self):
+        # given
+        node = mock.MagicMock()
+        service = MyService(node)
+
+        # when
+        service.run_validation()
+
+        # then
+        node.cmd.assert_called_with(MyService.validate[0], shell=True)
+
+    def test_run_validation_timer(self):
+        # given
+        node = mock.MagicMock()
+        service = MyService(node)
+        service.validation_mode = ServiceMode.TIMER
+        service.validation_timer = 0
+
+        # when
+        service.run_validation()
+
+        # then
+        node.cmd.assert_called_with(MyService.validate[0], shell=True)
+
+    def test_run_validation_timer_exception(self):
+        # given
+        node = mock.MagicMock()
+        node.cmd.side_effect = CoreCommandError(1, "error")
+        service = MyService(node)
+        service.validation_mode = ServiceMode.TIMER
+        service.validation_period = 0
+        service.validation_timer = 0
+
+        # when
+        with pytest.raises(ServiceBootError):
+            service.run_validation()
+
+    def test_run_validation_non_blocking(self):
+        # given
+        node = mock.MagicMock()
+        service = MyService(node)
+        service.validation_mode = ServiceMode.NON_BLOCKING
+        service.validation_period = 0
+        service.validation_timer = 0
+
+        # when
+        service.run_validation()
+
+        # then
+        node.cmd.assert_called_with(MyService.validate[0], shell=True)
+
+    def test_run_validation_non_blocking_exception(self):
+        # given
+        node = mock.MagicMock()
+        node.cmd.side_effect = CoreCommandError(1, "error")
+        service = MyService(node)
+        service.validation_mode = ServiceMode.NON_BLOCKING
+        service.validation_period = 0
+        service.validation_timer = 0
+
+        # when
+        with pytest.raises(ServiceBootError):
+            service.run_validation()
+
+    def test_render_config(self):
+        # given
+        node = mock.MagicMock()
+        service = MyService(node)
+
+        # when
+        config = service.render_config()
+
+        # then
+        assert config == {"value1": "", "value2": "0", "value3": ""}
+
+    def test_render_config_custom(self):
+        # given
+        node = mock.MagicMock()
+        service = MyService(node)
+        custom_config = {"value1": "1", "value2": "2", "value3": "3"}
+        service.set_config(custom_config)
+
+        # when
+        config = service.render_config()
+
+        # then
+        assert config == custom_config
+
+    def test_set_config(self):
+        # given
+        node = mock.MagicMock()
+        service = MyService(node)
+        custom_config = {"value1": "1", "value2": "2", "value3": "3"}
+
+        # when
+        service.set_config(custom_config)
+
+        # then
+        assert service.custom_config == custom_config
+
+    def test_set_config_exception(self):
+        # given
+        node = mock.MagicMock()
+        service = MyService(node)
+        custom_config = {"value4": "1"}
+
+        # when
+        with pytest.raises(CoreError):
+            service.set_config(custom_config)
+
+    def test_start_blocking(self):
+        # given
+        node = mock.MagicMock()
+        service = MyService(node)
+        service.create_dirs = mock.MagicMock()
+        service.create_files = mock.MagicMock()
+        service.run_startup = mock.MagicMock()
+        service.run_validation = mock.MagicMock()
+        service.wait_validation = mock.MagicMock()
+
+        # when
+        service.start()
+
+        # then
+        service.create_files.assert_called_once()
+        service.create_dirs.assert_called_once()
+        service.run_startup.assert_called_once()
+        service.run_validation.assert_not_called()
+        service.wait_validation.assert_not_called()
+
+    def test_start_timer(self):
+        # given
+        node = mock.MagicMock()
+        service = MyService(node)
+        service.validation_mode = ServiceMode.TIMER
+        service.create_dirs = mock.MagicMock()
+        service.create_files = mock.MagicMock()
+        service.run_startup = mock.MagicMock()
+        service.run_validation = mock.MagicMock()
+        service.wait_validation = mock.MagicMock()
+
+        # when
+        service.start()
+
+        # then
+        service.create_files.assert_called_once()
+        service.create_dirs.assert_called_once()
+        service.run_startup.assert_called_once()
+        service.run_validation.assert_not_called()
+        service.wait_validation.assert_called_once()
+
+    def test_start_non_blocking(self):
+        # given
+        node = mock.MagicMock()
+        service = MyService(node)
+        service.validation_mode = ServiceMode.NON_BLOCKING
+        service.create_dirs = mock.MagicMock()
+        service.create_files = mock.MagicMock()
+        service.run_startup = mock.MagicMock()
+        service.run_validation = mock.MagicMock()
+        service.wait_validation = mock.MagicMock()
+
+        # when
+        service.start()
+
+        # then
+        service.create_files.assert_called_once()
+        service.create_dirs.assert_called_once()
+        service.run_startup.assert_called_once()
+        service.run_validation.assert_called_once()
+        service.wait_validation.assert_not_called()
+
+    def test_default_route_ptp_uses_peer(self, session: Session):
+        # given
+        node1 = session.add_node(CoreNode)
+        node2 = session.add_node(CoreNode)
+        iface1_data = InterfaceData(id=0, ip4="10.83.0.1", ip4_mask=16)
+        iface2_data = InterfaceData(id=0, ip4="10.83.0.2", ip4_mask=16)
+        session.add_link(node1.id, node2.id, iface1_data, iface2_data)
+        service = node1.services[DefaultRouteService.name]
+
+        # when
+        data = service.data()
+
+        # then
+        assert data == {"routes": ["10.83.0.2"]}
+
+    def test_default_route_non_ptp_uses_first_host(self, session: Session):
+        # given
+        node = session.add_node(CoreNode)
+        switch = session.add_node(SwitchNode)
+        iface_data = InterfaceData(id=0, ip4="10.83.0.2", ip4_mask=16)
+        session.add_link(node.id, switch.id, iface_data)
+        service = node.services[DefaultRouteService.name]
+
+        # when
+        data = service.data()
+
+        # then
+        assert data == {"routes": ["10.83.0.1"]}
+
+    def test_default_route_uses_net_cmd(self):
+        # given
+        node = mock.MagicMock()
+        node.name = "n1"
+        iface = mock.MagicMock()
+        iface.net = None
+        iface.ips.return_value = [netaddr.IPNetwork("10.83.0.2/16")]
+        node.get_ifaces.return_value = [iface]
+        service = DefaultRouteService(node)
+
+        # when
+        service.start()
+
+        # then
+        node.net_cmd.assert_called_once_with(
+            "ip route replace default via 10.83.0.1"
+        )
+        node.cmd.assert_not_called()

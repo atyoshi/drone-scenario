@@ -1,0 +1,1 @@
+drop http 198.51.100.2 any -> 192.0.2.2 80 (msg:"Lab IPS test marker"; flow:established,to_server; http.uri; content:"/__drone_doctor_ips_test__"; startswith; endswith; sid:9100002; rev:1;)

@@ -1,0 +1,29 @@
+%YAML 1.1
+---
+classification-file: /dev/null
+reference-config-file: /dev/null
+threshold-file: /dev/null
+default-log-dir: /run/drone/sensor
+logging:
+  default-log-level: notice
+  outputs:
+    - console:
+        enabled: yes
+outputs:
+  - eve-log:
+      enabled: yes
+      filetype: regular
+      filename: eve.json
+      types:
+        - alert
+stats:
+  enabled: no
+stream:
+  inline: auto
+  checksum-validation: no
+af-packet:
+  - interface: wan0
+    threads: 1
+    cluster-id: 71
+    cluster-type: cluster_flow
+    checksum-checks: no

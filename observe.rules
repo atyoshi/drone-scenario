@@ -1,0 +1,1 @@
+alert tcp 198.51.100.2 any -> 192.0.2.2 80 (msg:"Lab external HTTP connection attempt"; flags:S,CE; flow:stateless; sid:9100001; rev:1;)
